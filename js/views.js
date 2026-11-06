@@ -83,19 +83,19 @@ function renderHome() {
     floats.appendChild(el);
   });
 
-  $("#btn-practice").addEventListener("click", () => { sfx.click(); location.hash = "#/practice"; });
-  $("#btn-exam").addEventListener("click", () => { sfx.click(); location.hash = "#/exam"; });
+  $("#btn-practice").addEventListener("click", () => { sfx.click(); goto("/practice"); });
+  $("#btn-exam").addEventListener("click", () => { sfx.click(); goto("/exam"); });
+  bindChapterCards();
   $("#btn-daily").addEventListener("click", () => {
     if (dailyDone) { toast("今天已经完成啦，明天再来！", "🌙"); return; }
     sfx.click();
-    quiz.mode = "practice";
+    quiz.mode = "daily";
     quiz.ids = [dailyQ.id];
     quiz.title = "🎯 每日一题";
     quiz.startTs = Date.now();
     quiz.correct = 0; quiz.wrongIds = []; quiz.calcCorrect = 0; quiz.calcWrong = 0;
     quiz.gainedXp = 0; quiz.levelUps = 0; quiz.idx = 0; quiz.locked = false;
     renderQuiz();
-    const done = state.daily; done[todayStr()] = dailyQ.id; state.daily = done; saveState();
   });
 }
 
@@ -127,6 +127,13 @@ function chapterCards(vol) {
   }).join("");
 }
 
+/** 绑定章节卡片点击事件（首页与练习页共用） */
+function bindChapterCards() {
+  $$(".chapter-card").forEach(card => {
+    card.addEventListener("click", () => { sfx.click(); startPractice(+card.dataset.ch); });
+  });
+}
+
 /* ---------- 章节练习列表 ---------- */
 function renderPractice() {
   const app = $("#app");
@@ -155,16 +162,6 @@ function renderPractice() {
     <div class="chapter-grid">${chapterCards(2)}</div>
   </div>`;
 
-  $$(".chapter-card").forEach(card => {
-    card.addEventListener("click", () => { sfx.click(); startPractice(+card.dataset.ch); });
-  });
-  $("#p-exam").addEventListener("click", () => { sfx.click(); location.hash = "#/exam"; });
-  $("#p-custom").addEventListener("click", () => { sfx.click(); location.hash = "#/custom"; });
-  $("#p-wrong").addEventListener("click", () => {
-    sfx.click();
-    if (!Object.keys(state.wrong).length) { toast("太棒了，没有错题！", "🎉"); return; }
-    startWrongPractice();
-  });
   $$("#order-toggle .ot-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       state.settings.order = btn.dataset.order;
@@ -173,6 +170,16 @@ function renderPractice() {
       toast(btn.dataset.order === "easy" ? "已切换为 易 → 难 顺序" : "已切换为随机顺序", btn.dataset.order === "easy" ? "🌱" : "🎲");
     });
   });
+
+  $("#p-exam").addEventListener("click", () => { sfx.click(); goto("/exam"); });
+  $("#p-custom").addEventListener("click", () => { sfx.click(); goto("/custom"); });
+  $("#p-wrong").addEventListener("click", () => {
+    sfx.click();
+    if (!Object.keys(state.wrong).length) { toast("太棒了，没有错题！", "🎉"); return; }
+    startWrongPractice();
+  });
+
+  bindChapterCards();
 }
 
 /* ---------- 模拟考试入口 ---------- */
@@ -423,7 +430,7 @@ function renderWrongbook() {
       <p>继续练习吧！答错的题会自动收进这里</p>
       <button class="btn-primary" id="empty-go">去练习 📖</button>
     </div>`;
-    $("#empty-go").addEventListener("click", () => { location.hash = "#/practice"; });
+    $("#empty-go").addEventListener("click", () => { goto("/practice"); });
     return;
   }
 
@@ -688,7 +695,7 @@ function renderAbout() {
     if (confirm("确定重置全部学习数据吗？此操作不可撤销！")) {
       resetAll();
       toast("已重置", "🔄");
-      location.hash = "#/";
+      goto("/");
     }
   });
 }

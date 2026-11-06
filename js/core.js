@@ -142,6 +142,16 @@ function mulberry32(a) {
   };
 }
 
+/** 路由跳转：hash 未变化时 hashchange 不会触发，需手动渲染 */
+function goto(path) {
+  const target = "#" + path;
+  if (location.hash === target) {
+    if (typeof router === "function") router();
+  } else {
+    location.hash = target;
+  }
+}
+
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {

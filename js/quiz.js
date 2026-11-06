@@ -116,9 +116,9 @@ function renderQuiz() {
       return;
     }
     stopTimer();
-    if (quiz.mode === "custom") location.hash = "#/custom";
-    else if (quiz.mode === "wrong") location.hash = "#/wrong";
-    else location.hash = "#/";
+    if (quiz.mode === "custom") goto("/custom");
+    else if (quiz.mode === "wrong") goto("/wrong");
+    else goto("/");
   });
 
   if (isExam) {
@@ -236,6 +236,11 @@ function recordAnswer(q, isCorrect) {
     state.streak = state.lastDay === todayStr(y) ? state.streak + 1 : 1;
     state.bestStreak = Math.max(state.bestStreak, state.streak);
     state.lastDay = today;
+  }
+
+  // 每日一题：真正作答后才标记完成
+  if (quiz.mode === "daily") {
+    state.daily[today] = q.id;
   }
 
   saveState();
@@ -375,16 +380,18 @@ function finishQuiz() {
       quiz.title = "🔁 本次错题重练";
       resetSessionCounters();
       renderQuiz();
+    } else if (quiz.mode === "daily") {
+      goto("/");
     } else if (quiz.mode === "practice") {
       const ch = questionById(quiz.ids[0]).chapter;
       startPractice(ch);
     } else {
-      location.hash = "#/practice";
+      goto("/practice");
     }
   });
   $("#res-back").addEventListener("click", () => {
     sfx.click();
-    location.hash = quiz.mode === "exam" ? "#/practice" : "#/practice";
+    goto(quiz.mode === "daily" ? "/" : "/practice");
   });
 }
 
