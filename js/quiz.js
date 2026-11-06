@@ -23,10 +23,16 @@ const quiz = {
 
 function questionById(id) { return QUESTION_MAP[id]; }
 
+/** 按设置排序：易→难（同难度内随机）或完全随机 */
+function orderedIds(ids) {
+  if (state.settings.order !== "easy") return shuffle(ids);
+  return shuffle(ids).sort((a, b) => QUESTION_MAP[a].difficulty - QUESTION_MAP[b].difficulty);
+}
+
 /** 开始一场练习：qs = [{id}] 或章节号 */
 function startPractice(chapterNum) {
   quiz.mode = "practice";
-  quiz.ids = shuffle(qsByChapter(chapterNum).map(q => q.id));
+  quiz.ids = orderedIds(qsByChapter(chapterNum).map(q => q.id));
   quiz.title = `${CHAPTERS[chapterNum - 1].icon} 第${["一","二","三","四","五","六","七","八","九","十","十一","十二"][chapterNum-1]}章 · ${CHAPTERS[chapterNum-1].name}`;
   quiz.startTs = Date.now();
   quiz.correct = 0; quiz.wrongIds = []; quiz.calcCorrect = 0; quiz.calcWrong = 0;
@@ -37,8 +43,20 @@ function startPractice(chapterNum) {
 /** 错题重练 */
 function startWrongPractice() {
   quiz.mode = "wrong";
-  quiz.ids = shuffle(Object.keys(state.wrong));
+  quiz.ids = orderedIds(Object.keys(state.wrong));
   quiz.title = "🧹 错题重练";
+  quiz.startTs = Date.now();
+  quiz.correct = 0; quiz.wrongIds = []; quiz.calcCorrect = 0; quiz.calcWrong = 0;
+  quiz.gainedXp = 0; quiz.levelUps = 0; quiz.idx = 0; quiz.locked = false;
+  renderQuiz();
+}
+
+/** 自由选题练习 */
+function startCustomPractice(ids, title) {
+  if (!ids.length) return;
+  quiz.mode = "custom";
+  quiz.ids = orderedIds(ids);
+  quiz.title = title || "🎯 自由选题";
   quiz.startTs = Date.now();
   quiz.correct = 0; quiz.wrongIds = []; quiz.calcCorrect = 0; quiz.calcWrong = 0;
   quiz.gainedXp = 0; quiz.levelUps = 0; quiz.idx = 0; quiz.locked = false;
@@ -98,7 +116,9 @@ function renderQuiz() {
       return;
     }
     stopTimer();
-    location.hash = "#/";
+    if (quiz.mode === "custom") location.hash = "#/custom";
+    else if (quiz.mode === "wrong") location.hash = "#/wrong";
+    else location.hash = "#/";
   });
 
   if (isExam) {

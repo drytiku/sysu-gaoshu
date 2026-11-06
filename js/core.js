@@ -4,9 +4,9 @@
  * ============================================================ */
 
 const APP = {
-  name: "中大高数题库",
+  name: "drytiku",
   motto: "博学 · 审问 · 慎思 · 明辨 · 笃行",
-  version: "1.0.0"
+  version: "1.1.0"
 };
 
 /* ---------- 章节元数据（北京大学版《高等数学》上、下册章节体系） ---------- */
@@ -72,7 +72,7 @@ function defaultState() {
     daily: {},             // "YYYY-MM-DD" -> qid（每日一题已完成记录）
     exams: [],             // {d, score, total, sec}
     badges: [],
-    settings: { dark: false, sound: true },
+    settings: { dark: false, sound: true, order: "easy" },
     resetCount: 0
   };
 }
@@ -130,6 +130,16 @@ function hashOf(str) {
   let h = 0;
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
   return h;
+}
+
+/** 可复现的伪随机数生成器（种子随机） */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 function shuffle(arr) {
@@ -382,4 +392,34 @@ function checkBadges() {
 
   // 错题克星（通过 resetCount 判断曾清空过错题本：由 clearWrong 时设置）
   if (state.clearedWrongOnce) add("wrongless");
+}
+
+/* ---------- 排行榜（趣味模拟榜单，每周一刷新） ---------- */
+const LB_NAMES = [
+  "康乐园卷王", "图书馆钉子户", "高数战神", "夜刷狂魔", "积分猎人",
+  "极限捕手", "泰勒狂人", "自习室常驻", "宿舍点灯人", "早八全勤王",
+  "满绩选手", "错题克星", "公式打印机", "草稿纸富翁", "解题机器",
+  "红墙守望者", "逸仙大道跑步者", "珠江河畔夜读者", "格兰堂坐客", "马丁堂读书郎"
+];
+
+function weekSeed() {
+  const d = new Date();
+  const day = (d.getDay() + 6) % 7; // 周一 = 0
+  d.setDate(d.getDate() - day);
+  d.setHours(0, 0, 0, 0);
+  return Math.floor(d.getTime() / 86400000);
+}
+
+/** 生成榜单：20 位 AI 同学 + 本机用户，按 EXP 排序 */
+function leaderboardData() {
+  const r = mulberry32(weekSeed() * 7919 + 13);
+  const names = shuffle(LB_NAMES.slice());
+  const bots = names.map(name => {
+    const xp = 80 + Math.floor(r() * 2200);
+    const answered = Math.floor(xp / 11 + r() * 50);
+    return { name, xp, answered, me: false };
+  });
+  bots.push({ name: "我", xp: state.xp, answered: totalAnswered(), me: true });
+  bots.sort((a, b) => b.xp - a.xp);
+  return bots;
 }

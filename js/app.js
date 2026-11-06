@@ -7,13 +7,15 @@ const routes = {
   "/": renderHome,
   "/practice": renderPractice,
   "/exam": renderExam,
+  "/custom": renderCustom,
+  "/rank": renderLeaderboard,
   "/wrong": renderWrongbook,
   "/stats": renderStats,
   "/about": renderAbout
 };
 
 function router() {
-  const hash = location.hash.replace(/^#/, "") || "/";
+  const hash = (location.hash.replace(/^#/, "") || "/").split("?")[0];
   const route = routes[hash] || renderHome;
   stopTimer();
   quiz.finished = false;
@@ -24,7 +26,7 @@ function router() {
 }
 
 function updateNav(hash) {
-  const map = { "/": "home", "/practice": "practice", "/wrong": "wrong", "/stats": "stats" };
+  const map = { "/": "home", "/practice": "practice", "/custom": "custom", "/rank": "rank", "/wrong": "wrong", "/stats": "stats" };
   const active = map[hash];
   $$(".nav-item").forEach(el => {
     el.classList.toggle("active", el.dataset.nav === active);

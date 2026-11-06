@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>中大高数题库 · 中山大学高等数学刷题</title>
-  <meta name="description" content="中山大学高等数学题库：按北京大学版《高等数学》上下册章节体系组织，覆盖历年期末常见题型，手机友好，即点即练。" />
+  <title>drytiku · 高等数学智能刷题</title>
+  <meta name="description" content="drytiku：中山大学高等数学刷题平台。按北京大学版《高等数学》上下册章节体系组织，覆盖历年期末常见题型，手机友好，即点即练。" />
   <meta name="theme-color" content="#0e8a4e" />
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
   <link rel="apple-touch-icon" href="icons/icon.svg" />
   <link rel="manifest" href="manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="中大高数" />
+  <meta name="apple-mobile-web-app-title" content="drytiku" />
   <link rel="stylesheet" href="css/katex.min.css" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
@@ -19,14 +19,15 @@
 
   <!-- 顶部导航 -->
   <header class="topbar">
-    <a class="logo" href="#/" title="中大高数题库">
+    <a class="logo" href="#/" title="drytiku">
       <span class="logo-int" id="logo-int">∫</span>
-      <span>中大高数题库<span class="logo-sub"><br />SYSU · 高等数学</span></span>
+      <span>drytiku<span class="logo-sub"><br />SYSU · 高等数学</span></span>
     </a>
     <nav class="top-links">
       <a class="top-link" data-nav="home" data-href="/" href="#/">首页</a>
       <a class="top-link" data-nav="practice" data-href="/practice" href="#/practice">章节练习</a>
-      <a class="top-link" data-nav="" data-href="/exam" href="#/exam">模拟考试</a>
+      <a class="top-link" data-nav="custom" data-href="/custom" href="#/custom">自由选题</a>
+      <a class="top-link" data-nav="rank" data-href="/rank" href="#/rank">排行榜</a>
       <a class="top-link" data-nav="wrong" data-href="/wrong" href="#/wrong">错题本</a>
       <a class="top-link" data-nav="stats" data-href="/stats" href="#/stats">统计</a>
     </nav>
@@ -48,8 +49,11 @@
     <a class="nav-item" data-nav="practice" data-href="/practice" href="#/practice">
       <span class="ni-icon">📖</span><span>练习</span>
     </a>
+    <a class="nav-item" data-nav="rank" data-href="/rank" href="#/rank">
+      <span class="ni-icon">🏆</span><span>排行</span>
+    </a>
     <a class="nav-item" data-nav="wrong" data-href="/wrong" href="#/wrong">
-      <span class="ni-icon">🧹</span><span>错题本</span>
+      <span class="ni-icon">🧹</span><span>错题</span>
     </a>
     <a class="nav-item" data-nav="stats" data-href="/stats" href="#/stats">
       <span class="ni-icon">📊</span><span>统计</span>

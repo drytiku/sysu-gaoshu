@@ -27,7 +27,7 @@ function renderHome() {
     <div class="hero-floats" id="hero-floats"></div>
     <div class="hero-inner">
       <div class="hero-badge">🎓 中山大学 · 高等数学</div>
-      <h1 class="hero-title">中大<span class="grad-text">高数</span>题库</h1>
+      <h1 class="hero-title">dry<span class="grad-text">tiku</span></h1>
       <p class="hero-sub">参照北京大学版《高等数学》上、下册章节体系 · 覆盖历年期末常见题型</p>
       <div class="hero-chips">
         <span class="chip">📚 12 章知识体系</span>
@@ -130,6 +130,7 @@ function chapterCards(vol) {
 /* ---------- 章节练习列表 ---------- */
 function renderPractice() {
   const app = $("#app");
+  const order = state.settings.order;
   app.innerHTML = `
   <div class="container view-enter">
     <div class="page-head">
@@ -137,8 +138,16 @@ function renderPractice() {
       <p>按章节逐章突破，答案即时反馈，解析步步拆解</p>
     </div>
     <div class="practice-tools">
-      <button class="btn-primary" id="p-exam">📝 全册模拟考试</button>
+      <button class="btn-primary" id="p-custom">🎯 自由选题</button>
+      <button class="btn-primary ghost" id="p-exam">📝 模拟考试</button>
       <button class="btn-ghost" id="p-wrong">🧹 错题重练 (${Object.keys(state.wrong).length})</button>
+    </div>
+    <div class="order-bar">
+      <span class="order-label">练习顺序</span>
+      <div class="order-toggle" id="order-toggle">
+        <button class="ot-btn ${order === "easy" ? "on" : ""}" data-order="easy">🌱 易 → 难</button>
+        <button class="ot-btn ${order === "random" ? "on" : ""}" data-order="random">🎲 随机</button>
+      </div>
     </div>
     <div class="section-head"><h2>上册 · 一元微积分</h2><span class="section-sub">第 1-7 章</span></div>
     <div class="chapter-grid">${chapterCards(1)}</div>
@@ -150,10 +159,19 @@ function renderPractice() {
     card.addEventListener("click", () => { sfx.click(); startPractice(+card.dataset.ch); });
   });
   $("#p-exam").addEventListener("click", () => { sfx.click(); location.hash = "#/exam"; });
+  $("#p-custom").addEventListener("click", () => { sfx.click(); location.hash = "#/custom"; });
   $("#p-wrong").addEventListener("click", () => {
     sfx.click();
     if (!Object.keys(state.wrong).length) { toast("太棒了，没有错题！", "🎉"); return; }
     startWrongPractice();
+  });
+  $$("#order-toggle .ot-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      state.settings.order = btn.dataset.order;
+      saveState();
+      renderPractice();
+      toast(btn.dataset.order === "easy" ? "已切换为 易 → 难 顺序" : "已切换为随机顺序", btn.dataset.order === "easy" ? "🌱" : "🎲");
+    });
   });
 }
 
@@ -216,6 +234,183 @@ function startExamScope(chapters) {
   renderQuiz();
 }
 
+/* ---------- 自由选题 ---------- */
+const customState = { ch: 0, type: "all", diff: 0, sel: new Set(), shown: 40 };
+
+function renderCustom() {
+  const app = $("#app");
+  const st = customState;
+  app.innerHTML = `
+  <div class="container view-enter">
+    <div class="page-head">
+      <h1>🎯 自由选题</h1>
+      <p>按章节、题型、难度筛选，定制你的专属练习</p>
+    </div>
+    <div class="card filter-card">
+      <div class="f-row">
+        <span class="f-label">章节</span>
+        <select class="f-select" id="f-ch">
+          <option value="0" ${st.ch === 0 ? "selected" : ""}>全部章节</option>
+          ${CHAPTERS.map(c => `<option value="${c.n}" ${st.ch === c.n ? "selected" : ""}>${c.icon} 第${["一","二","三","四","五","六","七","八","九","十","十一","十二"][c.n-1]}章 · ${c.name}</option>`).join("")}
+        </select>
+      </div>
+      <div class="f-row">
+        <span class="f-label">题型</span>
+        <div class="chip-row" id="f-type">
+          ${[["all", "全部"], ["choice", "🅰️ 选择题"], ["fill", "✍️ 填空题"], ["calc", "🧮 解答题"]].map(([v, l]) =>
+            `<button class="f-chip ${st.type === v ? "on" : ""}" data-type="${v}">${l}</button>`).join("")}
+        </div>
+      </div>
+      <div class="f-row">
+        <span class="f-label">难度</span>
+        <div class="chip-row" id="f-diff">
+          ${[[0, "全部"], [1, "● 基础"], [2, "●● 进阶"], [3, "●●● 挑战"]].map(([v, l]) =>
+            `<button class="f-chip ${st.diff === v ? "on" : ""}" data-diff="${v}">${l}</button>`).join("")}
+        </div>
+      </div>
+    </div>
+    <div class="pick-bar">
+      <span class="pick-bar-note">点击题目即可选中/取消 · 练习时按 易→难 排序</span>
+    </div>
+    <div class="pick-list" id="pick-list"></div>
+    <div class="pick-sticky" id="pick-sticky">
+      <span class="pick-count" id="pick-count">已选 ${st.sel.size} 题</span>
+      <button class="btn-ghost" id="pick-random">🎲 随机抽 10 题</button>
+      <button class="btn-primary" id="pick-start">开始练习 →</button>
+    </div>
+  </div>`;
+
+  renderPickList();
+
+  $("#f-ch").addEventListener("change", e => { st.ch = +e.target.value; renderPickList(); });
+  $$("#f-type .f-chip").forEach(btn => {
+    btn.addEventListener("click", () => {
+      st.type = btn.dataset.type;
+      $$("#f-type .f-chip").forEach(b => b.classList.toggle("on", b === btn));
+      renderPickList();
+    });
+  });
+  $$("#f-diff .f-chip").forEach(btn => {
+    btn.addEventListener("click", () => {
+      st.diff = +btn.dataset.diff;
+      $$("#f-diff .f-chip").forEach(b => b.classList.toggle("on", b === btn));
+      renderPickList();
+    });
+  });
+
+  $("#pick-random").addEventListener("click", () => {
+    const pool = filteredPool();
+    if (!pool.length) { toast("没有符合条件的题目", "😅"); return; }
+    st.sel = new Set(shuffle(pool).slice(0, Math.min(10, pool.length)).map(q => q.id));
+    renderPickList();
+    toast(`已随机选择 ${st.sel.size} 题`, "🎲");
+  });
+
+  $("#pick-start").addEventListener("click", () => {
+    if (!st.sel.size) { toast("请先选择题目", "👆"); return; }
+    sfx.click();
+    const ids = [...st.sel];
+    startCustomPractice(ids, `🎯 自由选题 · ${ids.length} 题`);
+  });
+}
+
+function filteredPool() {
+  const st = customState;
+  return ALL_QUESTIONS.filter(q =>
+    (st.ch === 0 || q.chapter === st.ch) &&
+    (st.type === "all" || q.type === st.type) &&
+    (st.diff === 0 || q.difficulty === st.diff)
+  );
+}
+
+function renderPickList() {
+  const st = customState;
+  const pool = filteredPool();
+  const list = $("#pick-list");
+  const visible = pool.slice(0, st.shown);
+  list.innerHTML = visible.map((q, i) => {
+    const on = st.sel.has(q.id);
+    return `
+    <div class="pick-item card ${on ? "on" : ""}" data-id="${q.id}">
+      <label class="pick-check" for="pk-${i}">
+        <input type="checkbox" id="pk-${i}" ${on ? "checked" : ""} />
+        <span class="pick-box">${on ? "✓" : ""}</span>
+      </label>
+      <div class="pick-body">
+        <div class="pick-q">${renderRich(q.question)}</div>
+        <div class="pick-meta">
+          <span class="badge-type badge-${q.type}">${typeName(q.type)}</span>
+          <span class="badge-diff">${"●".repeat(q.difficulty)}${"○".repeat(3 - q.difficulty)}</span>
+          <span class="badge-ch">${CHAPTERS[q.chapter - 1].icon} ${CHAPTERS[q.chapter - 1].short}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join("") + (pool.length > st.shown
+    ? `<button class="btn-ghost load-more" id="pick-more">加载更多（还有 ${pool.length - st.shown} 题）</button>`
+    : pool.length ? "" : `<div class="pick-empty">😕 没有符合条件的题目</div>`);
+
+  $("#pick-count").textContent = `已选 ${st.sel.size} 题`;
+
+  $$(".pick-item").forEach(item => {
+    item.addEventListener("click", () => {
+      const id = item.dataset.id;
+      if (st.sel.has(id)) st.sel.delete(id); else st.sel.add(id);
+      item.classList.toggle("on");
+      const box = item.querySelector(".pick-box");
+      const cb = item.querySelector("input");
+      cb.checked = st.sel.has(id);
+      box.textContent = st.sel.has(id) ? "✓" : "";
+      $("#pick-count").textContent = `已选 ${st.sel.size} 题`;
+    });
+  });
+
+  const more = $("#pick-more");
+  if (more) more.addEventListener("click", () => { st.shown += 40; renderPickList(); });
+}
+
+/* ---------- 排行榜 ---------- */
+function renderLeaderboard() {
+  const app = $("#app");
+  const data = leaderboardData();
+  const meIdx = data.findIndex(d => d.me);
+  const rank = meIdx + 1;
+  const prev = meIdx > 0 ? data[meIdx - 1] : null;
+  const medals = ["🥇", "🥈", "🥉"];
+
+  app.innerHTML = `
+  <div class="container view-enter">
+    <div class="page-head">
+      <h1>🏆 学习排行榜</h1>
+      <p>以累计 EXP 排名 · 每周一刷新榜单</p>
+    </div>
+
+    <div class="card rank-card">
+      <div class="rank-me">
+        <div class="rank-me-badge">${rank <= 3 ? medals[rank - 1] : "#" + rank}</div>
+        <div class="rank-me-info">
+          <div class="rank-me-name">我 <span class="rank-me-sub">Lv.${levelInfo(state.xp).lv} ${levelInfo(state.xp).title}</span></div>
+          <div class="rank-me-detail">${state.xp} EXP · 累计答题 ${totalAnswered()} 题</div>
+        </div>
+        <div class="rank-me-gap">${rank === 1 ? "👑 榜首！" : prev ? `距前一名 ${prev.xp - state.xp} EXP` : ""}</div>
+      </div>
+    </div>
+
+    <div class="card lb-card">
+      ${data.map((d, i) => `
+        <div class="lb-item ${d.me ? "me" : ""}" style="--i:${Math.min(i, 14)}">
+          <div class="lb-rank">${i < 3 ? medals[i] : i + 1}</div>
+          <div class="lb-avatar">${d.me ? "∫" : "🧑‍🎓"}</div>
+          <div class="lb-info">
+            <div class="lb-name">${d.name}${d.me ? " <span class='lb-me-tag'>本机</span>" : ""}</div>
+            <div class="lb-sub">答题 ${d.answered} 题</div>
+          </div>
+          <div class="lb-xp">${d.xp} <span>EXP</span></div>
+        </div>`).join("")}
+    </div>
+    <p class="lb-note">💡 榜单中的同学为 AI 模拟数据，每周一刷新，仅供娱乐。多多刷题，冲上榜首！</p>
+  </div>`;
+}
+
 /* ---------- 错题本 ---------- */
 function renderWrongbook() {
   const app = $("#app");
@@ -240,7 +435,9 @@ function renderWrongbook() {
     </div>
     <div class="practice-tools">
       <button class="btn-primary" id="wb-practice">🔁 重练全部错题</button>
-      <button class="btn-ghost danger" id="wb-clear">清空错题本</button>
+      <button class="btn-ghost" id="wb-md">📥 导出 Markdown</button>
+      <button class="btn-ghost" id="wb-print">🖨️ 打印 / 存 PDF</button>
+      <button class="btn-ghost danger" id="wb-clear">清空</button>
     </div>
     <div class="wb-list">
       ${wrongIds.map(id => {
@@ -260,6 +457,8 @@ function renderWrongbook() {
   </div>`;
 
   $("#wb-practice").addEventListener("click", () => { sfx.click(); startWrongPractice(); });
+  $("#wb-md").addEventListener("click", () => { sfx.click(); exportWrongMD(); });
+  $("#wb-print").addEventListener("click", () => { sfx.click(); printWrong(); });
   $("#wb-clear").addEventListener("click", () => {
     if (confirm("确定清空错题本吗？此操作不可撤销。")) {
       state.wrong = {};
@@ -370,6 +569,95 @@ function renderStats() {
   </div>`;
 }
 
+/* ---------- 错题导出 ---------- */
+function wrongSortedIds() {
+  return Object.keys(state.wrong)
+    .map(id => QUESTION_MAP[id])
+    .filter(Boolean)
+    .sort((a, b) => a.chapter - b.chapter || a.difficulty - b.difficulty)
+    .map(q => q.id);
+}
+
+/** 导出 Markdown 文件 */
+function exportWrongMD() {
+  const ids = wrongSortedIds();
+  if (!ids.length) { toast("没有错题可导出", "😅"); return; }
+  const lines = [
+    "# drytiku 错题本",
+    "",
+    "> 导出日期：" + todayStr() + " · 共 " + ids.length + " 题 · 按章节排序",
+    "",
+    "用支持 LaTeX 公式的 Markdown 编辑器（如 Typora、Obsidian）查看效果最佳。",
+    ""
+  ];
+  ids.forEach((id, i) => {
+    const q = QUESTION_MAP[id];
+    lines.push(`## ${i + 1}. [${typeName(q.type)} · ${CHAPTERS[q.chapter - 1].name} · 答错 ${state.wrong[id]} 次]`, "");
+    lines.push(q.question.replace(/\$\$/g, "\n$$\n").replace(/\\\(/g, "$").replace(/\\\)/g, "$"));
+    lines.push("");
+    if (q.type === "choice") {
+      q.options.forEach((o, j) => lines.push(`- ${["A", "B", "C", "D"][j]}. ${o.replace(/\\\(/g, "$").replace(/\\\)/g, "$")}${j === q.answer ? "  ✅ 正确" : ""}`));
+      lines.push("");
+    }
+    lines.push(`**答案：** ${(q.type === "fill" ? q.answer[0] : q.type === "choice" ? q.options[q.answer] : "见解析").replace(/\\\(/g, "$").replace(/\\\)/g, "$")}`, "");
+    lines.push("**解析：**");
+    q.solution.forEach(s => lines.push(`- ${s.replace(/\$\$/g, "").replace(/\\\(/g, "$").replace(/\\\)/g, "$")}`));
+    lines.push("", "---", "");
+  });
+  const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `drytiku-错题本-${todayStr()}.md`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  toast(`已导出 ${ids.length} 道错题`, "📥");
+}
+
+/** 打印 / 存为 PDF */
+function printWrong() {
+  const ids = wrongSortedIds();
+  if (!ids.length) { toast("没有错题可导出", "😅"); return; }
+  const base = location.href.replace(/[^/]*$/, "");
+  const w = window.open("", "_blank", "width=800,height=900");
+  if (!w) { toast("浏览器拦截了弹窗，请允许弹窗后重试", "⚠️"); return; }
+  const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+  <title>drytiku 错题本</title>
+  <link rel="stylesheet" href="${base}css/katex.min.css">
+  <style>
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; max-width: 780px; margin: 0 auto; padding: 26px 18px; color: #17261e; line-height: 1.7; }
+    h1 { font-size: 22px; border-bottom: 3px solid #0e8a4e; padding-bottom: 10px; }
+    .sub { color: #5d7266; font-size: 13px; margin: -10px 0 18px; }
+    .q { border: 1px solid #dbe5de; border-radius: 12px; padding: 16px 18px; margin: 14px 0; page-break-inside: avoid; }
+    .q h3 { font-size: 15px; margin: 0 0 10px; color: #0e8a4e; }
+    .opt { margin: 4px 0; }
+    .ans { background: #e8f5ee; border-radius: 8px; padding: 8px 14px; margin: 10px 0; }
+    ol { padding-left: 22px; } li { margin: 4px 0; }
+    .katex { font-size: 1.02em; }
+    .no-print { position: sticky; top: 0; text-align: right; background: #fff; padding: 10px 0; }
+    .no-print button { font-size: 15px; padding: 10px 22px; border-radius: 99px; border: none; background: #0e8a4e; color: #fff; cursor: pointer; }
+    @media print { .no-print { display: none; } body { padding: 0; } }
+  </style></head><body>
+  <div class="no-print"><button onclick="window.print()">🖨️ 打印 / 存为 PDF</button></div>
+  <h1>🧹 drytiku 错题本</h1>
+  <p class="sub">导出日期：${todayStr()} · 共 ${ids.length} 题 · 按章节排序</p>
+  ${ids.map((id, i) => {
+    const q = QUESTION_MAP[id];
+    return `<div class="q">
+      <h3>${i + 1}. ${typeName(q.type)} · ${CHAPTERS[q.chapter - 1].name} · 答错 ${state.wrong[id]} 次</h3>
+      <div>${renderRich(q.question)}</div>
+      ${q.type === "choice" ? `<div>${q.options.map((o, j) => `<div class="opt">${["A", "B", "C", "D"][j]}. ${renderRich(o)}${j === q.answer ? " ✅" : ""}</div>`).join("")}</div>` : ""}
+      <div class="ans"><b>答案：</b>${answerDisplay(q)}</div>
+      <div><b>解析：</b><ol>${q.solution.map(s => `<li>${renderRich(s)}</li>`).join("")}</ol></div>
+    </div>`;
+  }).join("")}
+  </body></html>`;
+  w.document.write(html);
+  w.document.close();
+  toast("已生成打印视图（可存为 PDF）", "🖨️");
+}
+
 /* ---------- 关于 ---------- */
 function renderAbout() {
   const app = $("#app");
@@ -377,7 +665,7 @@ function renderAbout() {
   <div class="container view-enter">
     <div class="page-head"><h1>ℹ️ 关于本站</h1></div>
     <div class="card about-card">
-      <h3>🎓 中大高数题库</h3>
+      <h3>🎓 drytiku</h3>
       <p>一款面向中山大学学子的高等数学刷题网站，按北京大学版《高等数学（上、下册）》章节体系组织，覆盖历年期末考试的常见题型与难度。</p>
       <h3>📝 关于题目</h3>
       <p>题库共 <b>${ALL_QUESTIONS.length} 道</b>：包含原创手写题与参数化生成的练习题，参考历年高数期末考试常见题型与命题风格编写，不包含任何真题原文。生成题的答案与解析由程序实时计算，保证正确性。</p>

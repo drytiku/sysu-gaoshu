@@ -1,5 +1,5 @@
 /* 中大高数题库 · Service Worker（离线缓存） */
-const CACHE = "sysu-gaoshu-v3";
+const CACHE = "drytiku-v4";
 const ASSETS = [
   "./",
   "./index.html",
